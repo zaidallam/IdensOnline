@@ -73,7 +73,7 @@ const Calendar: React.FC = () => {
         title: newEventTitle,
         start: selectedDate.start,
         end: selectedDate.end,
-        allDay: selectedDate.allDay,
+        allDay: false,
       };
 
       calendarApi.addEvent(newEvent);
@@ -86,7 +86,7 @@ const Calendar: React.FC = () => {
       <div className="flex w-full px-10 justify-start items-start gap-8">
         <div className="w-3/12">
           <div className="py-10 text-2xl font-extrabold px-7">
-            Calendar Events
+            Upcoming Appointments
           </div>
           <ul className="space-y-4">
             {currentEvents.length <= 0 && (
@@ -125,6 +125,7 @@ const Calendar: React.FC = () => {
               center: "title",
               right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
             }} // Set header toolbar options.
+            allDaySlot={false}
             initialView="dayGridMonth" // Initial view mode of the calendar.
             editable={true} // Allow events to be edited.
             selectable={true} // Allow dates to be selectable.

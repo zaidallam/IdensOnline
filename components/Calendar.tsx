@@ -11,12 +11,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
+import NewAppointmentDialog from "./new-appointment-dialog";
 
 const Calendar: React.FC = () => {
   const [currentEvents, setCurrentEvents] = useState<EventApi[]>([]);
@@ -118,12 +113,12 @@ const Calendar: React.FC = () => {
 
         <div className="w-9/12 mt-8">
           <FullCalendar
-            height={"85vh"}
+
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]} // Initialize calendar with required plugins.
             headerToolbar={{
               left: "prev,next today",
               center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+              right: "dayGridMonth,timeGridWeek,timeGridDay",
             }} // Set header toolbar options.
             allDaySlot={false}
             initialView="dayGridMonth" // Initial view mode of the calendar.
@@ -134,6 +129,7 @@ const Calendar: React.FC = () => {
             select={handleDateClick} // Handle date selection to create new events.
             eventClick={handleEventClick} // Handle clicking on events (e.g., to delete them).
             eventsSet={(events) => setCurrentEvents(events)} // Update state with current events whenever they change.
+            slotLabelInterval={30}
             initialEvents={
               typeof window !== "undefined"
                 ? JSON.parse(localStorage.getItem("events") || "[]")
@@ -144,30 +140,7 @@ const Calendar: React.FC = () => {
       </div>
 
       {/* Dialog for adding new events */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Event Details</DialogTitle>
-          </DialogHeader>
-          <form className="space-x-5 mb-4" onSubmit={handleAddEvent}>
-            <input
-              type="text"
-              placeholder="Event Title"
-              value={newEventTitle}
-              onChange={(e) => setNewEventTitle(e.target.value)} // Update new event title as the user types.
-              required
-              className="border border-gray-200 p-3 rounded-md text-lg"
-            />
-            <button
-              className="bg-green-500 text-white p-3 mt-5 rounded-md"
-              type="submit"
-            >
-              Add
-            </button>{" "}
-            {/* Button to submit new event */}
-          </form>
-        </DialogContent>
-      </Dialog>
+      <NewAppointmentDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} selectedDate={selectedDate?.start} selectedEndDate={selectedDate?.end}/>
     </div>
   );
 };

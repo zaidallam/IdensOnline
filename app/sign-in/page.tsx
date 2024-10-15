@@ -1,9 +1,11 @@
-import SignIn from "@/components/SignIn";
+import SignInCard from "@/components/sign-in-card";
 
 export default function Home() {
     return (
         <main>
-            <SignIn />
+            <div className="h-screen flex items-center justify-center">
+                <SignInCard />
+            </div>
         </main>
     );
 }

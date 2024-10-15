@@ -26,7 +26,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     },
                 });
 
-				const isPasswordCorrect = await comparePassword(password, user?.password_hash ?? "");
+                const isPasswordCorrect = await comparePassword(
+                    password,
+                    user?.password_hash ?? ""
+                );
 
                 if (!user || !isPasswordCorrect) {
                     return null;
@@ -39,6 +42,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     callbacks: {
         authorized: async ({ auth }) => {
             return !!auth;
+        },
+        async session({ session, token }) {
+            if (token.email) {
+                session.user.email = token.email;
+                session.user.id = token.id as string;
+            }
+
+            return session;
+        },
+        async jwt({ token, user }) {
+            if (user) {
+                token.id = user.id;
+                token.email = user.email;
+            }
+            return token;
         },
     },
 });

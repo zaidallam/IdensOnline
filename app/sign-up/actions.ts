@@ -24,7 +24,7 @@ export const signUpAction = async (prevState: any, formData: FormData) => {
 
     await db.user.create({
         data: {
-            email: email,
+            email: email.toLowerCase(),
             password_hash: hashedPassword,
         },
     });

@@ -1,4 +1,4 @@
-import Calendar from "@/components/Calendar";
+import Calendar from "@/components/calendar";
 import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 export default function Home() {

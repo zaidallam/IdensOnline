@@ -3,6 +3,7 @@
 import { auth, signOut } from "@/auth";
 import db from "@/lib/db";
 import { getCarDetailsByVin } from "@/lib/vin-search";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export const createAppointmentAction = async (
@@ -52,17 +53,26 @@ export const createAppointmentAction = async (
     if (!car) {
         let carDetails = await getCarDetailsByVin(vin.toString());
 
-        car = await db.car.create({
-            data: {
-                vin: vin.toString(),
-                make: carDetails.manufacturer,
-                model: carDetails.model,
-                year: parseInt(carDetails.year),
-            },
-        });
+        if (carDetails) {
+            car = await db.car.create({
+                data: {
+                    vin: vin.toString().toLowerCase(),
+                    make: carDetails.manufacturer,
+                    model: carDetails.model,
+                    year: parseInt(carDetails.year),
+                },
+            });
+        }
     }
 
-    let appointment = await db.appointment.create({
+    if (!car) {
+        return {
+            success: false,
+            message: "VIN not found.",
+        };
+    }
+
+    const appointment = await db.appointment.create({
         data: {
             appointment_type: appointmentType.toString(),
             date: date,
@@ -73,10 +83,24 @@ export const createAppointmentAction = async (
         },
     });
 
+    revalidatePath("/");
+
     return {
         success: true,
         message: "",
     };
+};
+
+export const deleteAppointmentAction = async (formData: FormData) => {
+    const appointmentId = formData.get("appointment-id")?.toString();
+
+    await db.appointment.delete({
+        where: {
+            id: appointmentId,
+        },
+    });
+
+    revalidatePath("/");
 };
 
 export const signOutAction = async () => {

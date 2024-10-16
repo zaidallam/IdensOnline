@@ -1,16 +1,16 @@
 services:
-  nextjs:
-    build:
-      context: ./
-      target: runner
-    volumes:
-      - .:/app
-      - /app/node_modules
-    command: npm run dev
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: development
+  # nextjs:
+  #   build:
+  #     context: ./
+  #     target: runner
+  #   volumes:
+  #     - .:/app
+  #     - /app/node_modules
+  #   command: npm run dev
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NODE_ENV: development
 
   postgres:
     image: postgres:latest

@@ -13,7 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createAppointmentAction } from "@/app/(dashboard)/actions";
 import { useFormState } from "react-dom";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import {
+    ChangeEvent,
+    Dispatch,
+    SetStateAction,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import {
     Select,
     SelectContent,
@@ -31,6 +38,25 @@ interface NewAppointmentDialogProps {
     selectedEndDate?: Date;
 }
 
+export const appointmentTypes = [
+    {
+        name: "Detailing",
+        value: "detailing",
+    },
+    {
+        name: "Chiprotect",
+        value: "chiprotect",
+    },
+    {
+        name: "Window Film",
+        value: "windowFilm",
+    },
+    {
+        name: "Photography",
+        value: "photography",
+    },
+];
+
 export default function NewAppointmentDialog({
     isOpen,
     setIsOpen,
@@ -42,9 +68,15 @@ export default function NewAppointmentDialog({
         success: false,
     });
 
+    const formRef = useRef<HTMLFormElement>(null);
+
     const [date, setDate] = useState<Date | undefined>();
     const [time, setTime] = useState<string | undefined>();
     const [duration, setDuration] = useState<number>();
+    const [vin, setVin] = useState<string>();
+
+    const [loadingCarDetails, setLoadingCarDetails] = useState<boolean>(false);
+    const [carDetails, setCarDetails] = useState<any | null>(null);
 
     useEffect(() => {
         if (!selectedDate) return;
@@ -74,8 +106,30 @@ export default function NewAppointmentDialog({
         selectedDateTime.setHours(parseInt(hrs), parseInt(mins));
     }
 
+    const handleVinLookup = (e: ChangeEvent<HTMLInputElement>) => {
+        setVin(e.target.value);
+
+        if (e.target.value?.length == 17) {
+            setLoadingCarDetails(true);
+
+            fetch("/api/car/details?vin=" + e.target.value)
+                .then((res) => res.json())
+                .then((json) => setCarDetails(json))
+                .then(_ => setLoadingCarDetails(false))
+                .catch((_) => setLoadingCarDetails(false));
+        } else {
+            setCarDetails(null);
+        }
+    };
+
+    const handleClose = (open: boolean) => {
+        formRef?.current?.reset()
+
+        setIsOpen(open);
+    }
+
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Schedule Appointment</DialogTitle>
@@ -84,7 +138,7 @@ export default function NewAppointmentDialog({
                     </DialogDescription>
                 </DialogHeader>
                 {!state?.success ? (
-                    <form action={formAction}>
+                    <form action={formAction} ref={formRef}>
                         <div className="grid w-full items-center gap-4">
                             <div className="flex flex-col space-y-1.5">
                                 <Label htmlFor="appointment-type">
@@ -95,18 +149,14 @@ export default function NewAppointmentDialog({
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
                                     <SelectContent position="popper">
-                                        <SelectItem value="detailing">
-                                            Detailing
-                                        </SelectItem>
-                                        <SelectItem value="chiprotect">
-                                            Chiprotect
-                                        </SelectItem>
-                                        <SelectItem value="windowFilm">
-                                            Window film
-                                        </SelectItem>
-                                        <SelectItem value="photography">
-                                            Photography
-                                        </SelectItem>
+                                        {appointmentTypes.map((type) => (
+                                            <SelectItem
+                                                key={type.value}
+                                                value={type.value}
+                                            >
+                                                {type.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -163,14 +213,24 @@ export default function NewAppointmentDialog({
                                     name="vin"
                                     maxLength={17}
                                     minLength={17}
+                                    onChange={handleVinLookup}
+                                    value={vin}
+                                    disabled={loadingCarDetails}
                                 />
+                                <Input disabled value={carDetails?.make} placeholder="Make" />
+                                <Input disabled value={carDetails?.model} placeholder="Model" />
+                                <Input disabled value={carDetails?.year} placeholder="Year" />
                             </div>
                             <p className="text-sm text-muted-foreground">
                                 {state.message}
                             </p>
                         </div>
                         <DialogFooter className="flex justify-center">
-                            <Button>Create Appointment</Button>
+                            <Button disabled={loadingCarDetails}>
+                                {!loadingCarDetails
+                                    ? "Create Appointment"
+                                    : "Loading"}
+                            </Button>
                         </DialogFooter>
                     </form>
                 ) : (

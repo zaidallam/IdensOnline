@@ -91,6 +91,94 @@ export const createAppointmentAction = async (
     };
 };
 
+export const updateAppointmentAction = async (
+    prevState: any,
+    formData: FormData
+) => {
+    const session = await auth();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+        redirect("/sign-in");
+    }
+
+    const {
+        "appointment-id": appointmentId,
+        "appointment-type": appointmentType,
+        date: dateStr,
+        duration,
+        vin,
+        ...fields
+    } = Object.fromEntries(formData.entries());
+
+    if (!appointmentType || !dateStr || !vin) {
+        return {
+            success: false,
+            message: "Please complete the form.",
+        };
+    }
+
+    const date = new Date(dateStr.toString());
+    const endDate = new Date(
+        date.getTime() + parseInt(duration.toString()) * 60 * 1000
+    );
+
+    if (date > endDate) {
+        return {
+            success: false,
+            message: "End date and time must be after start date and time.",
+        };
+    }
+
+    let car = await db.car.findUnique({
+        where: {
+            vin: vin.toString().toLowerCase(),
+        },
+    });
+
+    if (!car) {
+        let carDetails = await getCarDetailsByVin(vin.toString());
+
+        if (carDetails) {
+            car = await db.car.create({
+                data: {
+                    vin: vin.toString().toLowerCase(),
+                    make: carDetails.manufacturer,
+                    model: carDetails.model,
+                    year: parseInt(carDetails.year),
+                },
+            });
+        }
+    }
+
+    if (!car) {
+        return {
+            success: false,
+            message: "VIN not found.",
+        };
+    }
+
+    const appointment = await db.appointment.update({
+        data: {
+            appointment_type: appointmentType.toString(),
+            date: date,
+            end_date: endDate,
+            car_id: car.id,
+            is_cancelled: false,
+        },
+        where: {
+            id: appointmentId.toString(),
+        },
+    });
+
+    revalidatePath("/");
+
+    return {
+        success: true,
+        message: "",
+    };
+};
+
 export const deleteAppointmentAction = async (formData: FormData) => {
     const appointmentId = formData.get("appointment-id")?.toString();
 
@@ -101,6 +189,8 @@ export const deleteAppointmentAction = async (formData: FormData) => {
     });
 
     revalidatePath("/");
+
+    return { success: true };
 };
 
 export const signOutAction = async () => {

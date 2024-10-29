@@ -1,31 +1,102 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { formatDate, DateSelectArg } from "@fullcalendar/core";
+import {
+    formatDate,
+    DateSelectArg,
+    EventClickArg,
+    EventChangeArg,
+} from "@fullcalendar/core";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import NewAppointmentDialog, { appointmentTypes } from "./new-appointment-dialog";
+import interactionPlugin, { EventDragStopArg } from "@fullcalendar/interaction";
+import AppointmentDialog, { appointmentTypes } from "./appointment-dialog";
 import { Appointment, Car } from "@prisma/client";
-import { Trash } from "lucide-react";
-import { deleteAppointmentAction } from "@/app/(dashboard)/actions";
+import { Loader2, Trash2 } from "lucide-react";
+import {
+    deleteAppointmentAction,
+    updateAppointmentAction,
+} from "@/app/(dashboard)/actions";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import LoadingButton from "./admin-panel/loading-button";
 
-const formatAppointment = (ev: any) => {
-  const appointmentType = appointmentTypes.find(type => type.value === ev.appointment_type)?.name;
+const formatAppointment = (appointment: any) => {
+    const appointmentType = appointmentTypes.find(
+        (type) => type.value === appointment.appointment_type
+    )?.name;
 
-  return `${ev.car.make} ${ev.car.model} - ${appointmentType}`
-}
+    return `${appointment.car.make} ${appointment.car.model} -\n${appointmentType}`;
+};
 
-const Calendar = ({ events }: { events: (Appointment & { car: Car })[] }) => {
+const Calendar = ({
+    appointments,
+}: {
+    appointments: (Appointment & { car: Car })[];
+}) => {
     const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-    const [selectedDate, setSelectedDate] = useState<DateSelectArg | null>(
-        null
-    );
+    const [selectedDateRange, setSelectedDateRange] =
+        useState<DateSelectArg | null>(null);
+    const [selectedAppointment, setSelectedAppointment] = useState<
+        Appointment & { car: Car }
+    >();
 
     const handleDateClick = (selected: DateSelectArg) => {
-        setSelectedDate(selected);
+        setSelectedAppointment(undefined);
+        setSelectedDateRange(selected);
         setIsDialogOpen(true);
+    };
+
+    const handleEventClick = (event: EventClickArg) => {
+        const appointment = appointments.find(
+            (appointment) => appointment.id === event.event.id
+        );
+
+        if (appointment) {
+            openAppointmentDialog(appointment);
+        }
+    };
+
+    const openAppointmentDialog = (appointment: Appointment & { car: Car }) => {
+        setSelectedAppointment(appointment);
+        setSelectedDateRange({
+            start: appointment.date,
+            end: appointment.end_date,
+        } as DateSelectArg);
+        setIsDialogOpen(true);
+    };
+
+    const handleEventChange = async (event: EventChangeArg) => {
+        const data = new FormData();
+
+        const appointment = appointments.find(
+            (appointment) => appointment.id === event.event.id
+        );
+
+        if (appointment) {
+            const durationms =
+                event.event.end!.getTime() - event.event.start!.getTime();
+            let duration =
+                durationms / 1000 / 60 - ((durationms / 1000 / 60) % 30);
+            duration = duration > 120 ? 120 : duration;
+
+            data.append("appointment-id", appointment.id.toString());
+            data.append("date", event.event.start!.toISOString());
+            data.append("duration", duration + "");
+
+            data.append("appointment-type", appointment.appointment_type);
+            data.append("vin", appointment.car.vin);
+
+            await updateAppointmentAction({}, data);
+        }
     };
 
     return (
@@ -33,37 +104,59 @@ const Calendar = ({ events }: { events: (Appointment & { car: Car })[] }) => {
             <div className="flex w-full px-10 justify-start items-start gap-8">
                 <div className="w-3/12">
                     <div className="py-10 text-2xl font-extrabold px-7">
-                        Upcoming Appointments
+                        All Appointments
                     </div>
                     <ul className="space-y-4">
-                        {events.length <= 0 && (
+                        {appointments.length <= 0 && (
                             <div className="italic text-center text-gray-400">
-                                No Events Present
+                                No appointments Present
                             </div>
                         )}
 
-                        {events.length > 0 &&
-                            events.map((event) => (
-                                <li
-                                    className="border border-gray-200 shadow px-4 py-2 rounded-md text-blue-800"
-                                    key={event.id}
+                        {appointments.length > 0 &&
+                            appointments.map((appointment) => (
+                                <Card
+                                    key={appointment.id}
+                                    className="cursor-pointer hover:opacity-80 transition duration-300"
+                                    onClick={() =>
+                                        openAppointmentDialog(appointment)
+                                    }
                                 >
-                                    {formatAppointment(event)}
-                                    <br />
-                                    <label className="text-slate-950">
-                                        {formatDate(event.date!, {
-                                            year: "numeric",
-                                            month: "short",
-                                            day: "numeric",
-                                        })}{" "}
-                                    </label>
-                                    <form action={deleteAppointmentAction}>
-                                        <button type="submit">
-                                            <Trash />
-                                        </button>
-                                        <input hidden name="appointment-id" value={event.id}/>
-                                    </form>
-                                </li>
+                                    <CardHeader>
+                                        <CardTitle>
+                                            {formatAppointment(appointment)}
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {appointment.car.vin.toUpperCase()}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardFooter className="flex justify-between items-end">
+                                        <span className="text-slate-950 h-min">
+                                            {formatDate(appointment.date!, {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            })}
+                                        </span>
+                                        <form
+                                            action={deleteAppointmentAction}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <LoadingButton
+                                                className="px-2"
+                                                iconMode={true}
+                                            >
+                                                <Trash2 color="white" />
+                                            </LoadingButton>
+                                            <input
+                                                hidden
+                                                readOnly
+                                                name="appointment-id"
+                                                value={appointment.id}
+                                            />
+                                        </form>
+                                    </CardFooter>
+                                </Card>
                             ))}
                     </ul>
                 </div>
@@ -87,24 +180,27 @@ const Calendar = ({ events }: { events: (Appointment & { car: Car })[] }) => {
                         selectMirror={true} // Mirror selections visually.
                         dayMaxEvents={true} // Limit the number of events displayed per day.
                         select={handleDateClick}
-                        events={events.map((ev) => {
-                            return {
-                                title: `${ev.car.make} ${ev.car.model} - ${ev.appointment_type}`,
-                                start: ev.date,
-                                end: ev.end_date,
-                                allDay: false,
-                            };
-                        })} // Initial events loaded from local storage.
+                        eventClick={handleEventClick}
+                        eventChange={handleEventChange}
+                        events={appointments.map((appointment) => ({
+                            id: appointment.id,
+                            title: formatAppointment(appointment),
+                            start: appointment.date,
+                            end: appointment.end_date,
+                            allDay: false,
+                        }))} // Initial events loaded from local storage.
                     />
                 </div>
             </div>
 
             {/* Dialog for adding new events */}
-            <NewAppointmentDialog
+            <AppointmentDialog
                 isOpen={isDialogOpen}
                 setIsOpen={setIsDialogOpen}
-                selectedDate={selectedDate?.start}
-                selectedEndDate={selectedDate?.end}
+                selectedDate={selectedDateRange?.start}
+                selectedEndDate={selectedDateRange?.end}
+                appointment={selectedAppointment}
+                car={selectedAppointment?.car}
             />
         </div>
     );
